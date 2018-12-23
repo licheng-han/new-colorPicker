@@ -9,6 +9,13 @@
   <link rel="stylesheet" href="./colorPicker.css">
   <style>
     .test {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      width: 200px;
+      height: 200px;
+    }
+    .test2 {
       width: 200px;
       height: 200px;
     }
@@ -22,11 +29,11 @@
 <script>
   let colorPicker = new ColorPicker();
   document.body.appendChild(colorPicker.getElement());
-
+  colorPicker.getElement().classList.add('test');
 
 
   let test = document.createElement('div');
-  test.classList.add('test');
+  test.classList.add('test2');
   document.body.appendChild(test);
 
   colorPicker.onchange = function (color) {

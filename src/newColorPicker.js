@@ -2,27 +2,32 @@ const ColorPicker = function ColorPicker(defaultColor = 'rgba(255, 0, 0, 1)') {
   let obj = {};
   let onchange;
   let panel = createColorPicker();
-  console.log(panel);
+  let value = defaultColor;
   let doc = document.createElement('div');
   doc.style.cssText = `width: 50px;height: 20px`;
   doc.style.backgroundColor = defaultColor;
+
   doc.addEventListener('mousedown', function (e) {
     e.stopPropagation();
+    document.body.appendChild(panel.getElement());
+    panel.getElement().style.cssText = `position: fixed; z-index: 1000000; top: ${doc.getBoundingClientRect().bottom}px; left: ${doc.getBoundingClientRect().left}px`;
+    panel.setColor(doc.style.backgroundColor);
     panel.onchange = function (color) {
       doc.style.backgroundColor = color;
       onchange && onchange.call(obj, color);
     };
-    panel.getElement().style.cssText = `position: fixed; z-index: 1000000; top: ${doc.getBoundingClientRect().bottom}px; left: ${doc.getBoundingClientRect().left}px`;
-    document.body.appendChild(panel.getElement());
     document.addEventListener('mousedown', function (e) {
       panel.remove();
       document.removeEventListener('mousedown', arguments.callee);
     });
+    let panelPos = panel.getElement().getBoundingClientRect();
+    if (panelPos.right > window.innerWidth) {
+      panel.getElement().style.left = window.innerWidth - panel.getElement().clientWidth + 'px';
+    }
+    if (panelPos.bottom > window.innerHeight) {
+      panel.getElement().style.top = doc.getBoundingClientRect().top - panel.getElement().clientHeight + 'px';
+    }
   });
-
-  function setColor(color) {
-
-  }
 
   function getElement() {
     return doc;
@@ -94,7 +99,7 @@ const createColorPicker = getSingle(function createColorPicker() {
       style: {
         'width': `${config.width}px`,
         'height': `${config.height}px`,
-        'background': 'linear-gradient(90deg,#fff,hsva(0,0%,100%,0))'
+        'background': 'linear-gradient(90deg,#fff,rgba(255, 255, 255, 0))'
       }
     }),
     svPanelBlack = getNewDocument('div', ['cp-svPanelBlack'], {
@@ -145,9 +150,11 @@ const createColorPicker = getSingle(function createColorPicker() {
   appendChildren(svPanel, svPanelWhite, svPanelBlack, svPanelCursor);
   appendChildren(colorSvPanel, svPanel, hueSlider);
   appendChildren(colorPickerPanel, colorSvPanel, opacitySlider, dropDownBtns);
-  appendChildren(colorPicker, colorPickerPanel);
 
-
+    colorPickerPanel.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    })
   confirmButton.addEventListener('mousedown', function (e) {
     e.preventDefault();
     e.stopPropagation();
@@ -213,7 +220,6 @@ const createColorPicker = getSingle(function createColorPicker() {
   svPanel.addEventListener('mousedown', function(ev) {
     ev.preventDefault();
     ev.stopPropagation();
-    console.log(ev.offsetX, ev.offsetY);
     if (ev.target !== svPanelCursor) {
       svPanelCursor.style.left = ev.offsetX + 'px';
       svPanelCursor.style.top = ev.offsetY + 'px';
@@ -249,7 +255,7 @@ const createColorPicker = getSingle(function createColorPicker() {
   });
 
   // 监听颜色改变事件
-  function colorChange() {
+  function colorChange(change = true) {
     let hue = Math.round(hueThumb.offsetTop / config.height * 360);
     let opacity = Math.round((1 - opacityThumb.offsetLeft / config.width) * 100) / 100;
     let saturation = Math.round(svPanelCursor.offsetLeft / config.width * 100);
@@ -264,16 +270,30 @@ const createColorPicker = getSingle(function createColorPicker() {
     opacityBar.style.background = `linear-gradient(to left, rgba(19, 206, 102, 0) 0%, hsl(${hue}, 100%, 50%) 100%)`;
     hsva = `hsva(${hue}, ${saturation}%, ${lightness}%, ${opacity})`;
     rgba = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-    colorInfo.value = hsva;
-    onchange && onchange.call(obj, rgba);
+    colorInfo.value = rgba;
+    if (change) {
+      onchange && onchange.call(obj, rgba);
+    }
   }
 
+  function setColor(str) {
+    let r, g, b, a, h, s, v;
+    [r, g, b, a] = rgbStringToRGB(str);
+    [h, s, v, a] = RGBA2HSVA(r, g, b, a);
+    hueThumb.style.top = h / 360 * config.height + 'px';
+    svPanelCursor.style.left = s * config.width + 'px';
+    svPanelCursor.style.top = (1 - v) * config.height + 'px';
+    if (a) {
+      opacityThumb.style.left = (1 - a) * config.width;
+    }
+    colorChange(false);
+  }
   function getElement () {
-    return colorPicker;
+    return colorPickerPanel;
   }
 
   function remove() {
-    colorPicker.remove();
+    colorPickerPanel.remove();
   }
   Object.defineProperties(obj, {
     hsv: {
@@ -314,6 +334,12 @@ const createColorPicker = getSingle(function createColorPicker() {
           onchange = value;
         }
       }
+    },
+    setColor: {
+      value: setColor,
+      writable: false,
+      configurable: false,
+      enumerable: true
     }
   });
   return obj;
@@ -360,7 +386,10 @@ let appendChildren = function (father, ...children) {
   }
 }
 
-//获取元素的纵坐标（相对于窗口）
+function rgbStringToRGB(str) {
+  let res = /rgba?\(\s*(.{0,3}\s*),\s*(.{0,3}\s*),\s*(.{0,3}\s*),?\s*(.{0,4}\s*)?\)/.exec(str);
+  return [res[1].replace(/\s*,?/g, ''), res[2].replace(/\s*,?/g, ''), res[3].replace(/\s*,?/g, ''), res[4] && res[4].replace(/\s*,?/g, '')];
+}
 
 function HSVA2RGBA(h, s, v, a) {
   let c = v * s,
@@ -391,7 +420,9 @@ function HSVA2RGBA(h, s, v, a) {
   return [r, g, b, a];
 }
 
-function RGBA2HSVA (r, g, b, a, type = 'hsv') {
+function RGBA2HSVA (_r, _g, _b, _a, type = 'hsv') {
+  let r = +_r, g = +_g, b = +_b, a = 1;
+  _a && (a = +_a);
   let h, s, v, l;
   let max = Math.max(r, g, b);
   let min = Math.min(r, g, b);
@@ -407,7 +438,7 @@ function RGBA2HSVA (r, g, b, a, type = 'hsv') {
     h = 60 * ((r - g) / (max - min)) + 240;
   }
   if (type === 'hsv') {
-    v = max;
+    v = max / 255;
     if (max === 0) {
       s = 0;
     } else {
