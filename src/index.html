@@ -21,7 +21,6 @@
 </script>
 <script>
   let colorPicker = new ColorPicker();
-  console.log(colorPicker);
   document.body.appendChild(colorPicker.getElement());
 
 
@@ -33,5 +32,8 @@
   colorPicker.onchange = function (color) {
     test.style.backgroundColor = color;
   }
+
+  let picker = new ColorPicker();
+  document.body.appendChild(picker.getElement());
 </script>
 </html>

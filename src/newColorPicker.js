@@ -1,27 +1,33 @@
 const ColorPicker = function ColorPicker(defaultColor = 'rgba(255, 0, 0, 1)') {
   let obj = {};
   let onchange;
-  let createPanel = getSingle(createColorPicker);
-  let panel = createPanel();
-  panel.onchange = function (color) {
-    doc.style.backgroundColor = color;
-    onchange && onchange.call(obj, color);
-  };
+  let panel = createColorPicker();
+  console.log(panel);
   let doc = document.createElement('div');
   doc.style.cssText = `width: 50px;height: 20px`;
   doc.style.backgroundColor = defaultColor;
-  doc.addEventListener('click', function (e) {
+  doc.addEventListener('mousedown', function (e) {
     e.stopPropagation();
+    panel.onchange = function (color) {
+      doc.style.backgroundColor = color;
+      onchange && onchange.call(obj, color);
+    };
+    panel.getElement().style.cssText = `position: fixed; z-index: 1000000; top: ${doc.getBoundingClientRect().bottom}px; left: ${doc.getBoundingClientRect().left}px`;
     document.body.appendChild(panel.getElement());
     document.addEventListener('mousedown', function (e) {
       panel.remove();
-      console.log('panel remove');
       document.removeEventListener('mousedown', arguments.callee);
     });
   });
+
+  function setColor(color) {
+
+  }
+
   function getElement() {
     return doc;
   }
+
   function remove() {
     doc.remove();
   }
@@ -63,9 +69,10 @@ const getSingle = function (fn) {
   }
 };
 
-function createColorPicker() {
+
+const createColorPicker = getSingle(function createColorPicker() {
   let obj = {};
-  let hsla, rgba;
+  let hsva, rgba;
   let onchange;
   const config = {
     width: 280,
@@ -87,7 +94,7 @@ function createColorPicker() {
       style: {
         'width': `${config.width}px`,
         'height': `${config.height}px`,
-        'background': 'linear-gradient(90deg,#fff,hsla(0,0%,100%,0))'
+        'background': 'linear-gradient(90deg,#fff,hsva(0,0%,100%,0))'
       }
     }),
     svPanelBlack = getNewDocument('div', ['cp-svPanelBlack'], {
@@ -144,6 +151,7 @@ function createColorPicker() {
   confirmButton.addEventListener('mousedown', function (e) {
     e.preventDefault();
     e.stopPropagation();
+    colorPicker.remove();
   });
 
   hueSlider.addEventListener('mousedown', function(ev) {
@@ -254,9 +262,9 @@ function createColorPicker() {
     svPanel.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
     // 改变透明度选择条的颜色
     opacityBar.style.background = `linear-gradient(to left, rgba(19, 206, 102, 0) 0%, hsl(${hue}, 100%, 50%) 100%)`;
-    hsla = `hsla(${hue}, ${saturation}%, ${lightness}%, ${opacity})`;
+    hsva = `hsva(${hue}, ${saturation}%, ${lightness}%, ${opacity})`;
     rgba = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-    colorInfo.value = rgba;
+    colorInfo.value = hsva;
     onchange && onchange.call(obj, rgba);
   }
 
@@ -268,12 +276,12 @@ function createColorPicker() {
     colorPicker.remove();
   }
   Object.defineProperties(obj, {
-    hsl: {
+    hsv: {
       get () {
-        return hsla;
+        return hsva;
       },
       set (value) {
-        hsla = value;
+        hsva = value;
       }
     },
     rgba: {
@@ -282,6 +290,7 @@ function createColorPicker() {
       },
       set (value) {
         rgba = value;
+
       }
     },
     getElement: {
@@ -308,7 +317,7 @@ function createColorPicker() {
     }
   });
   return obj;
-}
+});
 
 
 let getNewDocument = function (tagName, classList, attributesObject, xmlNS) {
@@ -380,4 +389,40 @@ function HSVA2RGBA(h, s, v, a) {
   }
   [r, g, b] = [(_r + m) * 255, (_g + m) * 255, (_b + m) * 255];
   return [r, g, b, a];
+}
+
+function RGBA2HSVA (r, g, b, a, type = 'hsv') {
+  let h, s, v, l;
+  let max = Math.max(r, g, b);
+  let min = Math.min(r, g, b);
+  if (max === min) {
+    h = 0;
+  } else if (max === r && g >= b) {
+    h = 60 * ((g - b) / (max - min)) + 0;
+  } else if (max === r && g < b) {
+    h = 60 * ((g - b) / (max - min)) + 360;
+  } else if (max === g) {
+    h = 60 * ((b - r) / (max - min)) + 120;
+  } else if (max === b) {
+    h = 60 * ((r - g) / (max - min)) + 240;
+  }
+  if (type === 'hsv') {
+    v = max;
+    if (max === 0) {
+      s = 0;
+    } else {
+      s = 1 - min / max;
+    }
+    return [h, s, v, a];
+  } else {
+    l = 0.5 * (max + min);
+    if (l === 0 || max === min) {
+      s = 0;
+    } else if (l >= 0 && l <= 0.5) {
+      s = (max - min) / (2 * l);
+    } else if (l > 0.5) {
+      s = (max - min) / (2 - 2 * l);
+    }
+    return [h, s, l, a];
+  }
 }
